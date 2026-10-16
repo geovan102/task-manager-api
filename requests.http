@@ -1,14 +1,14 @@
+### 1. Εγγραφή χρήστη (έγκυρα δεδομένα)
 POST http://localhost:3000/users
 Content-Type: application/json
 
 {
-  "email": "test@example.com",
-  "name": "Γιώργος",
-  "password": "fake-password"
+  "email": "nikos@example.com",
+  "name": "Νίκος",
+  "password": "fake-password-123"
 }
 
-###
-
+### 2. Εγγραφή με λάθος δεδομένα (πρέπει 400)
 POST http://localhost:3000/users
 Content-Type: application/json
 
@@ -18,8 +18,7 @@ Content-Type: application/json
   "password": "123"
 }
 
-###
-
+### 3. Εγγραφή με email που υπάρχει ήδη (πρέπει 409)
 POST http://localhost:3000/users
 Content-Type: application/json
 
@@ -28,3 +27,33 @@ Content-Type: application/json
   "name": "Μαρία",
   "password": "fake-password-123"
 }
+
+### 4. Login με σωστό κωδικό (πρέπει 200 και token)
+# @name login
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "fake-password"
+}
+
+### 5. Login με λάθος κωδικό (πρέπει 401)
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "wrong-password"
+}
+
+### 6. Προστατευμένο endpoint με σωστό token (πρέπει 200)
+GET http://localhost:3000/auth/me
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 7. Προστατευμένο endpoint χωρίς token (πρέπει 401)
+GET http://localhost:3000/auth/me
+
+### 8. Προστατευμένο endpoint με ψεύτικο token (πρέπει 401)
+GET http://localhost:3000/auth/me
+Authorization: Bearer fake.token.here
