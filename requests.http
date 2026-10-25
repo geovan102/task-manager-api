@@ -57,3 +57,31 @@ GET http://localhost:3000/auth/me
 ### 8. Προστατευμένο endpoint με ψεύτικο token (πρέπει 401)
 GET http://localhost:3000/auth/me
 Authorization: Bearer fake.token.here
+
+### 9. Δημιουργία project (πρέπει 201)
+POST http://localhost:3000/projects
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "name": "Website",
+  "description": "Test project"
+}
+
+### 10. Δημιουργία project με κενό όνομα (πρέπει 400)
+POST http://localhost:3000/projects
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "name": "",
+  "description": "Test project"
+}
+
+### 11. Δημιουργία project χωρίς token (πρέπει 401)
+POST http://localhost:3000/projects
+Content-Type: application/json
+
+{
+  "name": "Website"
+}
