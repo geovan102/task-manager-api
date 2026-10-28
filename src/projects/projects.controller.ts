@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -19,5 +28,13 @@ export class ProjectsController {
   @Get()
   findAll(@Req() req: { user: { sub: number } }) {
     return this.projectsService.findAll(req.user.sub);
+  }
+
+  @Get(':id')
+  findOne(
+    @Req() req: { user: { sub: number } },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.projectsService.findOne(req.user.sub, id);
   }
 }

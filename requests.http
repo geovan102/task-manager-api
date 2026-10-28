@@ -92,3 +92,29 @@ Authorization: Bearer {{login.response.body.accessToken}}
 
 ### 13. Λίστα projects χωρίς token (πρέπει 401)
 GET http://localhost:3000/projects
+
+### 14. Ένα project μου (πρέπει 200)
+GET http://localhost:3000/projects/1
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 15. Project που δεν υπάρχει (πρέπει 404)
+GET http://localhost:3000/projects/9999
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 16. Λάθος id, όχι αριθμός (πρέπει 400)
+GET http://localhost:3000/projects/abc
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 17. Login ως Μαρία
+# @name loginMaria
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+  "email": "maria@example.com",
+  "password": "fake-password-123"
+}
+
+### 18. Η Μαρία ζητά project άλλου χρήστη (πρέπει 404)
+GET http://localhost:3000/projects/1
+Authorization: Bearer {{loginMaria.response.body.accessToken}}

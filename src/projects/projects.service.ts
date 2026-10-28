@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 
@@ -21,5 +21,17 @@ export class ProjectsService {
       where: { ownerId },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async findOne(ownerId :number, id: number) {
+    const project = await this.prisma.project.findFirst({
+      where: { id, ownerId }
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    return project;
   }
 }
