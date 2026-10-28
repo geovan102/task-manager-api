@@ -85,3 +85,10 @@ Content-Type: application/json
 {
   "name": "Website"
 }
+
+### 12. Λίστα με τα projects μου (πρέπει 200)
+GET http://localhost:3000/projects
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 13. Λίστα projects χωρίς token (πρέπει 401)
+GET http://localhost:3000/projects
