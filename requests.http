@@ -118,3 +118,49 @@ Content-Type: application/json
 ### 18. Η Μαρία ζητά project άλλου χρήστη (πρέπει 404)
 GET http://localhost:3000/projects/1
 Authorization: Bearer {{loginMaria.response.body.accessToken}}
+
+### 19. Αλλαγή μόνο του ονόματος (πρέπει 200)
+PATCH http://localhost:3000/projects/1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "name": "Website v2"
+}
+
+### 20. Αλλαγή μόνο της περιγραφής (πρέπει 200)
+PATCH http://localhost:3000/projects/1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "description": "Updated description"
+}
+
+### 21. Αλλαγή με κενό όνομα (πρέπει 400)
+PATCH http://localhost:3000/projects/1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "name": ""
+}
+
+### 22. Η Μαρία προσπαθεί να αλλάξει project άλλου (πρέπει 404)
+PATCH http://localhost:3000/projects/1
+Content-Type: application/json
+Authorization: Bearer {{loginMaria.response.body.accessToken}}
+
+{
+  "name": "Hacked"
+}
+
+### 23. Προσπάθεια αλλαγής του ιδιοκτήτη (το πεδίο αγνοείται)
+PATCH http://localhost:3000/projects/1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "name": "Website v3",
+  "ownerId": 99
+}
