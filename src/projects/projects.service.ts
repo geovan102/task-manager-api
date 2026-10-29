@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
-import { UpdateProjectsDto } from './dto/update-projects.dto';
+import { UpdateProjectsDto } from './dto/update-project.dto';
 
 @Injectable()
 export class ProjectsService {
@@ -45,6 +45,14 @@ export class ProjectsService {
         name: dto.name ?? undefined,
         description: dto.description,
       }
+    });
+  }
+
+  async remove(ownerId: number, id: number) {
+    await this.findOne(ownerId, id);
+
+    return this.prisma.project.delete({
+      where: { id },
     });
   }
 }

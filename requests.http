@@ -164,3 +164,12 @@ Authorization: Bearer {{login.response.body.accessToken}}
   "name": "Website v3",
   "ownerId": 99
 }
+
+### 24. Διαγραφή project μου (πρέπει 204 No Content)
+DELETE http://localhost:3000/projects/5
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 25. Η Μαρία προσπαθεί να διαγράψει project άλλου (πρέπει 404)
+DELETE http://localhost:3000/projects/5
+Authorization: Bearer {{loginMaria.response.body.accessToken}}

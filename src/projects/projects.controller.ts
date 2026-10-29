@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
@@ -12,7 +15,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
-import { UpdateProjectsDto } from './dto/update-projects.dto';
+import { UpdateProjectsDto } from './dto/update-project.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('projects')
@@ -47,5 +50,14 @@ export class ProjectsController {
     @Body() dto: UpdateProjectsDto,
   ) {
     return this.projectsService.update(req.user.sub, id, dto);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(
+    @Req() req: { user: { sub: number } },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.projectsService.remove(req.user.sub, id);
   }
 }
