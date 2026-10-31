@@ -165,11 +165,205 @@ Authorization: Bearer {{login.response.body.accessToken}}
   "ownerId": 99
 }
 
-### 24. Διαγραφή project μου (πρέπει 204 No Content)
-DELETE http://localhost:3000/projects/5
+### 24. Δημιουργία task στο δικό μου project (πρέπει 201)
+POST http://localhost:3000/tasks
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.accessToken}}
 
-### 25. Η Μαρία προσπαθεί να διαγράψει project άλλου (πρέπει 404)
-DELETE http://localhost:3000/projects/5
+{
+  "title": "Design homepage",
+  "description": "First draft",
+  "projectId": 1
+}
+
+### 25. projectId σαν κείμενο (πρέπει 400)
+POST http://localhost:3000/tasks
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "title": "Design homepage",
+  "projectId": "abc"
+}
+
+### 26. Project που δεν υπάρχει (πρέπει 404)
+POST http://localhost:3000/tasks
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "title": "Ghost task",
+  "projectId": 9999
+}
+
+### 27. Η Μαρία βάζει task σε ξένο project (πρέπει 404)
+POST http://localhost:3000/tasks
+Content-Type: application/json
 Authorization: Bearer {{loginMaria.response.body.accessToken}}
+
+{
+  "title": "Hacked task",
+  "projectId": 1
+}
+
+### 28. Χωρίς token (πρέπει 401)
+POST http://localhost:3000/tasks
+Content-Type: application/json
+
+{
+  "title": "No token",
+  "projectId": 1
+}
+
+### 29. Λίστα tasks του project 1 (πρέπει 200 και πίνακας)
+GET http://localhost:3000/tasks?projectId=1
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 30. Χωρίς projectId (πρέπει 400)
+GET http://localhost:3000/tasks
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 31. Project που δεν υπάρχει (πρέπει 404)
+GET http://localhost:3000/tasks?projectId=9999
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 32. Η Μαρία ζητά tasks ξένου project (πρέπει 404)
+GET http://localhost:3000/tasks?projectId=1
+Authorization: Bearer {{loginMaria.response.body.accessToken}}
+
+### 33. Χωρίς token (πρέπει 401)
+GET http://localhost:3000/tasks?projectId=1
+
+### 34. Ένα task μου (πρέπει 200)
+GET http://localhost:3000/tasks/1
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 35. Task που δεν υπάρχει (πρέπει 404)
+GET http://localhost:3000/tasks/9999
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 36. Λάθος id, όχι αριθμός (πρέπει 400)
+GET http://localhost:3000/tasks/abc
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 37. Η Μαρία ζητά task ξένου project (πρέπει 404)
+GET http://localhost:3000/tasks/1
+Authorization: Bearer {{loginMaria.response.body.accessToken}}
+
+### 38. Χωρίς token (πρέπει 401)
+GET http://localhost:3000/tasks/1
+
+### 39. Αλλαγή status σε DONE (πρέπει 200)
+PATCH http://localhost:3000/tasks/1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "status": "DONE"
+}
+
+### 40. Λάθος status (πρέπει 400)
+PATCH http://localhost:3000/tasks/1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "status": "FINISHED"
+}
+
+### 41. Κενός τίτλος (πρέπει 400)
+PATCH http://localhost:3000/tasks/1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "title": ""
+}
+
+### 42. Η Μαρία αλλάζει task ξένου project (πρέπει 404)
+PATCH http://localhost:3000/tasks/1
+Content-Type: application/json
+Authorization: Bearer {{loginMaria.response.body.accessToken}}
+
+{
+  "status": "DONE"
+}
+
+### 43. Προσπάθεια μετακίνησης σε άλλο project (το projectId αγνοείται, πρέπει 200)
+PATCH http://localhost:3000/tasks/1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "title": "Design homepage v2",
+  "projectId": 99
+}
+
+### 44. Χωρίς token (πρέπει 401)
+PATCH http://localhost:3000/tasks/1
+Content-Type: application/json
+
+{
+  "status": "DONE"
+}
+
+### 45. Η Μαρία προσπαθεί να σβήσει ξένο task (πρέπει 404)
+DELETE http://localhost:3000/tasks/2
+Authorization: Bearer {{loginMaria.response.body.accessToken}}
+
+### 46. Το task υπάρχει ακόμα (πρέπει 200)
+GET http://localhost:3000/tasks/2
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 47. Διαγραφή του δικού μου task (πρέπει 200)
+DELETE http://localhost:3000/tasks/2
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 48. Το task δεν υπάρχει πια (πρέπει 404)
+GET http://localhost:3000/tasks/2
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 49. Διαγραφή ξανά του ίδιου (πρέπει 404)
+DELETE http://localhost:3000/tasks/2
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 50. Χωρίς token (πρέπει 401)
+DELETE http://localhost:3000/tasks/2
+
+### 51. Φτιάξε προσωρινό project (πρέπει 201, σημείωσε το id)
+POST http://localhost:3000/projects
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "name": "Temp project"
+}
+
+### 52. Φτιάξε task σε αυτό (πρέπει 201, σημείωσε το id του task)
+POST http://localhost:3000/tasks
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.accessToken}}
+
+{
+  "title": "Temp task",
+  "projectId": 3
+}
+
+### 53. Η Μαρία προσπαθεί να σβήσει το project (πρέπει 404)
+DELETE http://localhost:3000/projects/3
+Authorization: Bearer {{loginMaria.response.body.accessToken}}
+
+### 54. Διαγραφή του project (πρέπει 200)
+DELETE http://localhost:3000/projects/3
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 55. Το task του project σβήστηκε μαζί (πρέπει 404)
+GET http://localhost:3000/tasks/3
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 56. Διαγραφή ξανά (πρέπει 404)
+DELETE http://localhost:3000/projects/3
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### 57. Χωρίς token (πρέπει 401)
+DELETE http://localhost:3000/projects/3
