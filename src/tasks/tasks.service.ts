@@ -9,7 +9,7 @@ export class TasksService {
 
   async create(userId: number, dto: CreateTaskDto) {
     const project = await this.prisma.project.findFirst({
-      where: { id: dto.projectId, ownerId: userId },
+      where: { id: dto.projectId, members: { some: { userId } } },
     });
 
     if (!project) {
@@ -27,7 +27,7 @@ export class TasksService {
 
   async findAll(userId: number, projectId: number) {
     const project = await this.prisma.project.findFirst({
-      where: { id: projectId, ownerId: userId },
+      where: { id: projectId, members: { some: { userId } } },
     });
 
     if (!project) {
@@ -42,7 +42,7 @@ export class TasksService {
 
   async findOne(userId: number, id: number) {
     const task = await this.prisma.task.findFirst({
-      where: { id, project: { ownerId: userId } },
+      where: { id, project: { members: { some: { userId } } } },
     });
 
     if (!task) {

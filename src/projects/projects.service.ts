@@ -1,7 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
-import { UpdateProjectsDto } from './dto/update-project.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
+import { AddMemberDto } from './dto/add-member.dto';
 
 @Injectable()
 export class ProjectsService {
@@ -10,6 +16,12 @@ export class ProjectsService {
   async create(ownerId: number, dto: CreateProjectDto) {
     return this.prisma.project.create({
       data: {
+        members: {
+          create: {
+            userId: ownerId,
+            role: 'OWNER',
+          },
+        },
         name: dto.name,
         description: dto.description,
         ownerId,
@@ -17,16 +29,16 @@ export class ProjectsService {
     });
   }
 
-  async findAll(ownerId: number) {
+  async findAll(userId: number) {
     return this.prisma.project.findMany({
-      where: { ownerId },
+      where: { members: { some: { userId } } },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findOne(ownerId :number, id: number) {
+  async findOne(userId: number, id: number) {
     const project = await this.prisma.project.findFirst({
-      where: { id, ownerId }
+      where: { id, members: { some: { userId } } },
     });
 
     if (!project) {
@@ -36,7 +48,7 @@ export class ProjectsService {
     return project;
   }
 
-  async update(ownerId: number, id: number, dto: UpdateProjectsDto) {
+  async update(ownerId: number, id: number, dto: UpdateProjectDto) {
     await this.findOne(ownerId, id);
 
     return this.prisma.project.update({
@@ -44,15 +56,77 @@ export class ProjectsService {
       data: {
         name: dto.name ?? undefined,
         description: dto.description,
-      }
+      },
     });
   }
 
-  async remove(ownerId: number, id: number) {
-    await this.findOne(ownerId, id);
+  async remove(userId: number, id: number) {
+    await this.assertOwner(userId, id);
 
     return this.prisma.project.delete({
       where: { id },
     });
+  }
+
+  async addMember(userId: number, projectId: number, dto: AddMemberDto) {
+    await this.assertOwner(userId, projectId);
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const existing = await this.prisma.projectMember.findFirst({
+      where: { userId: user.id, projectId },
+    });
+
+    if (existing) {
+      throw new ConflictException('User is already a member');
+    }
+
+    return this.prisma.projectMember.create({
+      data: {
+        userId: user.id,
+        projectId,
+        role: 'MEMBER',
+      },
+      select: {
+        id: true,
+        role: true,
+        projectId: true,
+        user: { select: { id: true, email: true, name: true } },
+      },
+    });
+  }
+
+  async listMembers(userId: number, projectId: number) {
+    await this.findOne(userId, projectId);
+
+    return this.prisma.projectMember.findMany({
+      where: { projectId },
+      select: {
+        id: true,
+        role: true,
+        user: { select: { id: true, email: true, name: true } },
+      },
+      orderBy: { id: 'asc' },
+    });
+  }
+
+  private async assertOwner(userId: number, projectId: number) {
+    const membership = await this.prisma.projectMember.findFirst({
+      where: { userId, projectId },
+    });
+
+    if (!membership) {
+      throw new NotFoundException('Project not found');
+    }
+
+    if (membership.role !== 'OWNER') {
+      throw new ForbiddenException('Only the project owner can do this');
+    }
   }
 }

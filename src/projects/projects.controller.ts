@@ -15,7 +15,8 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
-import { UpdateProjectsDto } from './dto/update-project.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
+import { AddMemberDto } from './dto/add-member.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('projects')
@@ -23,10 +24,7 @@ export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Post()
-  create(
-    @Req() req: { user: { sub: number } },
-    @Body() dto: CreateProjectDto,
-  ) {
+  create(@Req() req: { user: { sub: number } }, @Body() dto: CreateProjectDto) {
     return this.projectsService.create(req.user.sub, dto);
   }
 
@@ -47,7 +45,7 @@ export class ProjectsController {
   update(
     @Req() req: { user: { sub: number } },
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateProjectsDto,
+    @Body() dto: UpdateProjectDto,
   ) {
     return this.projectsService.update(req.user.sub, id, dto);
   }
@@ -59,5 +57,22 @@ export class ProjectsController {
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.projectsService.remove(req.user.sub, id);
+  }
+
+  @Post(':id/members')
+  addMember(
+    @Req() req: { user: { sub: number } },
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AddMemberDto,
+  ) {
+    return this.projectsService.addMember(req.user.sub, id, dto);
+  }
+
+  @Get(':id/members')
+  listMembers(
+    @Req() req: { user: { sub: number } },
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.projectsService.listMembers(req.user.sub, id);
   }
 }

@@ -1,15 +1,47 @@
-### 1. Εγγραφή χρήστη (έγκυρα δεδομένα)
-POST http://localhost:3000/users
+# Task Manager API - basic test file (REST Client extension for VS Code)
+#
+# How to use:
+#   1. Start the database (docker compose up -d) and the server (npm run start:dev).
+#   2. Send the requests from top to bottom, one at a time ("Send Request").
+#   3. Every title says which status code to expect.
+#   4. Ids and tokens are copied automatically from earlier responses.
+#   5. Tokens expire after 1 hour. If you get 401, send section A again.
+#
+# Actors:
+#   owner  = test@example.com    creates the project
+#   member = maria@example.com   gets invited to the project
+#
+# Only fake data lives in this file. Never paste real tokens or passwords here.
+
+@baseUrl = http://localhost:3000
+
+
+################################################################
+# A. SETUP: users and logins
+################################################################
+
+### A1. Register the owner (201 the first time, 409 if it already exists - both are fine)
+POST {{baseUrl}}/users
 Content-Type: application/json
 
 {
-  "email": "nikos@example.com",
-  "name": "Νίκος",
+  "email": "test@example.com",
+  "name": "Owner",
+  "password": "fake-password"
+}
+
+### A2. Register the member (201 the first time, 409 afterwards - both are fine)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "email": "maria@example.com",
+  "name": "Maria",
   "password": "fake-password-123"
 }
 
-### 2. Εγγραφή με λάθος δεδομένα (πρέπει 400)
-POST http://localhost:3000/users
+### A3. Register with invalid data (400)
+POST {{baseUrl}}/users
 Content-Type: application/json
 
 {
@@ -18,19 +50,9 @@ Content-Type: application/json
   "password": "123"
 }
 
-### 3. Εγγραφή με email που υπάρχει ήδη (πρέπει 409)
-POST http://localhost:3000/users
-Content-Type: application/json
-
-{
-  "email": "maria@example.com",
-  "name": "Μαρία",
-  "password": "fake-password-123"
-}
-
-### 4. Login με σωστό κωδικό (πρέπει 200 και token)
-# @name login
-POST http://localhost:3000/auth/login
+### A4. Login as owner (200, returns accessToken)
+# @name ownerLogin
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
@@ -38,76 +60,9 @@ Content-Type: application/json
   "password": "fake-password"
 }
 
-### 5. Login με λάθος κωδικό (πρέπει 401)
-POST http://localhost:3000/auth/login
-Content-Type: application/json
-
-{
-  "email": "test@example.com",
-  "password": "wrong-password"
-}
-
-### 6. Προστατευμένο endpoint με σωστό token (πρέπει 200)
-GET http://localhost:3000/auth/me
-Authorization: Bearer {{login.response.body.accessToken}}
-
-### 7. Προστατευμένο endpoint χωρίς token (πρέπει 401)
-GET http://localhost:3000/auth/me
-
-### 8. Προστατευμένο endpoint με ψεύτικο token (πρέπει 401)
-GET http://localhost:3000/auth/me
-Authorization: Bearer fake.token.here
-
-### 9. Δημιουργία project (πρέπει 201)
-POST http://localhost:3000/projects
-Content-Type: application/json
-Authorization: Bearer {{login.response.body.accessToken}}
-
-{
-  "name": "Website",
-  "description": "Test project"
-}
-
-### 10. Δημιουργία project με κενό όνομα (πρέπει 400)
-POST http://localhost:3000/projects
-Content-Type: application/json
-Authorization: Bearer {{login.response.body.accessToken}}
-
-{
-  "name": "",
-  "description": "Test project"
-}
-
-### 11. Δημιουργία project χωρίς token (πρέπει 401)
-POST http://localhost:3000/projects
-Content-Type: application/json
-
-{
-  "name": "Website"
-}
-
-### 12. Λίστα με τα projects μου (πρέπει 200)
-GET http://localhost:3000/projects
-Authorization: Bearer {{login.response.body.accessToken}}
-
-### 13. Λίστα projects χωρίς token (πρέπει 401)
-GET http://localhost:3000/projects
-
-### 14. Ένα project μου (πρέπει 200)
-GET http://localhost:3000/projects/1
-Authorization: Bearer {{login.response.body.accessToken}}
-
-### 15. Project που δεν υπάρχει (πρέπει 404)
-GET http://localhost:3000/projects/9999
-Authorization: Bearer {{login.response.body.accessToken}}
-
-### 16. Λάθος id, όχι αριθμός (πρέπει 400)
-GET http://localhost:3000/projects/abc
-Authorization: Bearer {{login.response.body.accessToken}}
-
-### 17. Login ως Μαρία
-# @name loginMaria
-POST http://localhost:3000/auth/login
+### A5. Login as member (200, returns accessToken)
+# @name memberLogin
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
@@ -115,255 +70,269 @@ Content-Type: application/json
   "password": "fake-password-123"
 }
 
-### 18. Η Μαρία ζητά project άλλου χρήστη (πρέπει 404)
-GET http://localhost:3000/projects/1
-Authorization: Bearer {{loginMaria.response.body.accessToken}}
-
-### 19. Αλλαγή μόνο του ονόματος (πρέπει 200)
-PATCH http://localhost:3000/projects/1
+### A6. Login with a wrong password (401)
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
-Authorization: Bearer {{login.response.body.accessToken}}
 
 {
-  "name": "Website v2"
+  "email": "test@example.com",
+  "password": "wrong-password"
 }
 
-### 20. Αλλαγή μόνο της περιγραφής (πρέπει 200)
-PATCH http://localhost:3000/projects/1
+### A7. Who am I? Owner (200)
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### A8. Protected endpoint without a token (401)
+GET {{baseUrl}}/auth/me
+
+################################################################
+# B. PROJECTS: the owner does CRUD
+################################################################
+
+### B1. Create a project (201, the owner also becomes a member with role OWNER)
+# @name createProject
+POST {{baseUrl}}/projects
 Content-Type: application/json
-Authorization: Bearer {{login.response.body.accessToken}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
-  "description": "Updated description"
+  "name": "Website",
+  "description": "Test project"
 }
 
-### 21. Αλλαγή με κενό όνομα (πρέπει 400)
-PATCH http://localhost:3000/projects/1
+### B2. Create a project with an empty name (400)
+POST {{baseUrl}}/projects
 Content-Type: application/json
-Authorization: Bearer {{login.response.body.accessToken}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
   "name": ""
 }
 
-### 22. Η Μαρία προσπαθεί να αλλάξει project άλλου (πρέπει 404)
-PATCH http://localhost:3000/projects/1
+### B3. Create a project without a token (401)
+POST {{baseUrl}}/projects
 Content-Type: application/json
-Authorization: Bearer {{loginMaria.response.body.accessToken}}
 
 {
-  "name": "Hacked"
+  "name": "Website"
 }
 
-### 23. Προσπάθεια αλλαγής του ιδιοκτήτη (το πεδίο αγνοείται)
-PATCH http://localhost:3000/projects/1
+### B4. List my projects (200, contains the new project)
+GET {{baseUrl}}/projects
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### B5. Get one project (200)
+GET {{baseUrl}}/projects/{{createProject.response.body.id}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### B6. Get a project that does not exist (404)
+GET {{baseUrl}}/projects/999999
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### B7. Get a project with an id that is not a number (400)
+GET {{baseUrl}}/projects/abc
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### B8. Update only the name (200)
+PATCH {{baseUrl}}/projects/{{createProject.response.body.id}}
 Content-Type: application/json
-Authorization: Bearer {{login.response.body.accessToken}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+{
+  "name": "Website v2"
+}
+
+### B9. Update with an empty name (400)
+PATCH {{baseUrl}}/projects/{{createProject.response.body.id}}
+Content-Type: application/json
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+{
+  "name": ""
+}
+
+### B10. Try to change the owner through the body (200, the ownerId field is ignored)
+PATCH {{baseUrl}}/projects/{{createProject.response.body.id}}
+Content-Type: application/json
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
   "name": "Website v3",
   "ownerId": 99
 }
 
-### 24. Δημιουργία task στο δικό μου project (πρέπει 201)
-POST http://localhost:3000/tasks
+### B11. Someone who is NOT a member asks for the project (404, it does not exist for her)
+GET {{baseUrl}}/projects/{{createProject.response.body.id}}
+Authorization: Bearer {{memberLogin.response.body.accessToken}}
+
+### B12. The same person lists her projects (200, empty list [])
+GET {{baseUrl}}/projects
+Authorization: Bearer {{memberLogin.response.body.accessToken}}
+
+################################################################
+# C. MEMBERS: invitations and roles
+################################################################
+
+### C1. Owner invites Maria (201, role MEMBER, no password in the answer)
+POST {{baseUrl}}/projects/{{createProject.response.body.id}}/members
 Content-Type: application/json
-Authorization: Bearer {{login.response.body.accessToken}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+{
+  "email": "maria@example.com"
+}
+
+### C2. Invite the same person again (409)
+POST {{baseUrl}}/projects/{{createProject.response.body.id}}/members
+Content-Type: application/json
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+{
+  "email": "maria@example.com"
+}
+
+### C3. Invite an email that has no account (404)
+POST {{baseUrl}}/projects/{{createProject.response.body.id}}/members
+Content-Type: application/json
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+{
+  "email": "nobody@example.com"
+}
+
+### C4. Owner lists the members (200, two entries: OWNER and MEMBER)
+GET {{baseUrl}}/projects/{{createProject.response.body.id}}/members
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### C5. Now Maria can see the project (200)
+GET {{baseUrl}}/projects/{{createProject.response.body.id}}
+Authorization: Bearer {{memberLogin.response.body.accessToken}}
+
+### C6. Maria (member) tries to rename the project (403: she is known, but not allowed)
+PATCH {{baseUrl}}/projects/{{createProject.response.body.id}}
+Content-Type: application/json
+Authorization: Bearer {{memberLogin.response.body.accessToken}}
+
+{
+  "name": "Renamed by member"
+}
+
+### C7. Maria (member) tries to invite someone (403)
+POST {{baseUrl}}/projects/{{createProject.response.body.id}}/members
+Content-Type: application/json
+Authorization: Bearer {{memberLogin.response.body.accessToken}}
+
+{
+  "email": "test@example.com"
+}
+
+################################################################
+# D. TASKS: owner and member work on the same project
+################################################################
+
+### D1. Owner creates a task (201, status is TODO)
+# @name createTask
+POST {{baseUrl}}/tasks
+Content-Type: application/json
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
   "title": "Design homepage",
   "description": "First draft",
-  "projectId": 1
+  "projectId": {{createProject.response.body.id}}
 }
 
-### 25. projectId σαν κείμενο (πρέπει 400)
-POST http://localhost:3000/tasks
+### D2. Create a task with projectId as text (400)
+POST {{baseUrl}}/tasks
 Content-Type: application/json
-Authorization: Bearer {{login.response.body.accessToken}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
-  "title": "Design homepage",
+  "title": "Bad task",
   "projectId": "abc"
 }
 
-### 26. Project που δεν υπάρχει (πρέπει 404)
-POST http://localhost:3000/tasks
+### D3. Create a task in a project that does not exist (404)
+POST {{baseUrl}}/tasks
 Content-Type: application/json
-Authorization: Bearer {{login.response.body.accessToken}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
   "title": "Ghost task",
-  "projectId": 9999
+  "projectId": 999999
 }
 
-### 27. Η Μαρία βάζει task σε ξένο project (πρέπει 404)
-POST http://localhost:3000/tasks
+### D4. Maria (member) creates a task too (201)
+POST {{baseUrl}}/tasks
 Content-Type: application/json
-Authorization: Bearer {{loginMaria.response.body.accessToken}}
+Authorization: Bearer {{memberLogin.response.body.accessToken}}
 
 {
-  "title": "Hacked task",
-  "projectId": 1
+  "title": "Write copy",
+  "projectId": {{createProject.response.body.id}}
 }
 
-### 28. Χωρίς token (πρέπει 401)
-POST http://localhost:3000/tasks
+### D5. List the tasks of the project (200, two tasks)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### D6. List tasks without projectId (400)
+GET {{baseUrl}}/tasks
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### D7. Get one task (200)
+GET {{baseUrl}}/tasks/{{createTask.response.body.id}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### D8. Change the status to DONE (200, updatedAt changes)
+PATCH {{baseUrl}}/tasks/{{createTask.response.body.id}}
 Content-Type: application/json
-
-{
-  "title": "No token",
-  "projectId": 1
-}
-
-### 29. Λίστα tasks του project 1 (πρέπει 200 και πίνακας)
-GET http://localhost:3000/tasks?projectId=1
-Authorization: Bearer {{login.response.body.accessToken}}
-
-### 30. Χωρίς projectId (πρέπει 400)
-GET http://localhost:3000/tasks
-Authorization: Bearer {{login.response.body.accessToken}}
-
-### 31. Project που δεν υπάρχει (πρέπει 404)
-GET http://localhost:3000/tasks?projectId=9999
-Authorization: Bearer {{login.response.body.accessToken}}
-
-### 32. Η Μαρία ζητά tasks ξένου project (πρέπει 404)
-GET http://localhost:3000/tasks?projectId=1
-Authorization: Bearer {{loginMaria.response.body.accessToken}}
-
-### 33. Χωρίς token (πρέπει 401)
-GET http://localhost:3000/tasks?projectId=1
-
-### 34. Ένα task μου (πρέπει 200)
-GET http://localhost:3000/tasks/1
-Authorization: Bearer {{login.response.body.accessToken}}
-
-### 35. Task που δεν υπάρχει (πρέπει 404)
-GET http://localhost:3000/tasks/9999
-Authorization: Bearer {{login.response.body.accessToken}}
-
-### 36. Λάθος id, όχι αριθμός (πρέπει 400)
-GET http://localhost:3000/tasks/abc
-Authorization: Bearer {{login.response.body.accessToken}}
-
-### 37. Η Μαρία ζητά task ξένου project (πρέπει 404)
-GET http://localhost:3000/tasks/1
-Authorization: Bearer {{loginMaria.response.body.accessToken}}
-
-### 38. Χωρίς token (πρέπει 401)
-GET http://localhost:3000/tasks/1
-
-### 39. Αλλαγή status σε DONE (πρέπει 200)
-PATCH http://localhost:3000/tasks/1
-Content-Type: application/json
-Authorization: Bearer {{login.response.body.accessToken}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
   "status": "DONE"
 }
 
-### 40. Λάθος status (πρέπει 400)
-PATCH http://localhost:3000/tasks/1
+### D9. Change the status to a value that is not allowed (400)
+PATCH {{baseUrl}}/tasks/{{createTask.response.body.id}}
 Content-Type: application/json
-Authorization: Bearer {{login.response.body.accessToken}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
   "status": "FINISHED"
 }
 
-### 41. Κενός τίτλος (πρέπει 400)
-PATCH http://localhost:3000/tasks/1
+### D10. Try to move the task to another project (200, the projectId field is ignored)
+PATCH {{baseUrl}}/tasks/{{createTask.response.body.id}}
 Content-Type: application/json
-Authorization: Bearer {{login.response.body.accessToken}}
-
-{
-  "title": ""
-}
-
-### 42. Η Μαρία αλλάζει task ξένου project (πρέπει 404)
-PATCH http://localhost:3000/tasks/1
-Content-Type: application/json
-Authorization: Bearer {{loginMaria.response.body.accessToken}}
-
-{
-  "status": "DONE"
-}
-
-### 43. Προσπάθεια μετακίνησης σε άλλο project (το projectId αγνοείται, πρέπει 200)
-PATCH http://localhost:3000/tasks/1
-Content-Type: application/json
-Authorization: Bearer {{login.response.body.accessToken}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
   "title": "Design homepage v2",
-  "projectId": 99
+  "projectId": 999999
 }
 
-### 44. Χωρίς token (πρέπει 401)
-PATCH http://localhost:3000/tasks/1
-Content-Type: application/json
+################################################################
+# E. DELETING: a task, then the whole project (cascade)
+################################################################
 
-{
-  "status": "DONE"
-}
+### E1. Maria (member) tries to delete the project (403)
+DELETE {{baseUrl}}/projects/{{createProject.response.body.id}}
+Authorization: Bearer {{memberLogin.response.body.accessToken}}
 
-### 45. Η Μαρία προσπαθεί να σβήσει ξένο task (πρέπει 404)
-DELETE http://localhost:3000/tasks/2
-Authorization: Bearer {{loginMaria.response.body.accessToken}}
+### E2. Owner deletes a task (204, no body)
+DELETE {{baseUrl}}/tasks/{{createTask.response.body.id}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
-### 46. Το task υπάρχει ακόμα (πρέπει 200)
-GET http://localhost:3000/tasks/2
-Authorization: Bearer {{login.response.body.accessToken}}
+### E3. The deleted task is gone (404)
+GET {{baseUrl}}/tasks/{{createTask.response.body.id}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
-### 47. Διαγραφή του δικού μου task (πρέπει 200)
-DELETE http://localhost:3000/tasks/2
-Authorization: Bearer {{login.response.body.accessToken}}
+### E4. Owner deletes the project (204, its remaining tasks and members are deleted too)
+DELETE {{baseUrl}}/projects/{{createProject.response.body.id}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
-### 48. Το task δεν υπάρχει πια (πρέπει 404)
-GET http://localhost:3000/tasks/2
-Authorization: Bearer {{login.response.body.accessToken}}
-
-### 49. Διαγραφή ξανά του ίδιου (πρέπει 404)
-DELETE http://localhost:3000/tasks/2
-Authorization: Bearer {{login.response.body.accessToken}}
-
-### 50. Χωρίς token (πρέπει 401)
-DELETE http://localhost:3000/tasks/2
-
-### 51. Φτιάξε προσωρινό project (πρέπει 201, σημείωσε το id)
-POST http://localhost:3000/projects
-Content-Type: application/json
-Authorization: Bearer {{login.response.body.accessToken}}
-
-{
-  "name": "Temp project"
-}
-
-### 52. Φτιάξε task σε αυτό (πρέπει 201, σημείωσε το id του task)
-POST http://localhost:3000/tasks
-Content-Type: application/json
-Authorization: Bearer {{login.response.body.accessToken}}
-
-{
-  "title": "Temp task",
-  "projectId": 3
-}
-
-### 53. Η Μαρία προσπαθεί να σβήσει το project (πρέπει 404)
-DELETE http://localhost:3000/projects/3
-Authorization: Bearer {{loginMaria.response.body.accessToken}}
-
-### 54. Διαγραφή του project (πρέπει 200)
-DELETE http://localhost:3000/projects/3
-Authorization: Bearer {{login.response.body.accessToken}}
-
-### 55. Το task του project σβήστηκε μαζί (πρέπει 404)
-GET http://localhost:3000/tasks/3
-Authorization: Bearer {{login.response.body.accessToken}}
-
-### 56. Διαγραφή ξανά (πρέπει 404)
-DELETE http://localhost:3000/projects/3
-Authorization: Bearer {{login.response.body.accessToken}}
-
-### 57. Χωρίς token (πρέπει 401)
-DELETE http://localhost:3000/projects/3
+### E5. The deleted project is gone (404)
+GET {{baseUrl}}/projects/{{createProject.response.body.id}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
