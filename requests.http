@@ -277,6 +277,46 @@ Authorization: Bearer {{memberLogin.response.body.accessToken}}
 GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}
 Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
+### D5a. Page 1 with one item per page (200, 1 task, totalPages 2)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&limit=1&page=1
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### D5b. Page 2 with one item per page (200, the other task)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&limit=1&page=2
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### D5c. Page 3 does not exist (200, empty data, total still 2)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&limit=1&page=3
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### D5d. Search in the title, lower case (200, only "Design homepage")
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&search=design
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### D5e. Filter by status TODO (200, both tasks)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&status=TODO
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### D5f. Filter by status DONE (200, empty data, total 0)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&status=DONE
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### D5g. Page 0 is not allowed (400)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&page=0
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### D5h. Limit too big (400)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&limit=1000
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### D5i. Page that is not a number (400)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&page=abc
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### D5j. Status that is not allowed (400)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&status=FINISHED
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
 ### D6. List tasks without projectId (400)
 GET {{baseUrl}}/tasks
 Authorization: Bearer {{ownerLogin.response.body.accessToken}}

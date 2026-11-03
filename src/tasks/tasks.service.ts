@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { FindTasksDto } from './dto/find-tasks.dto';
 
 @Injectable()
 export class TasksService {
@@ -25,7 +26,9 @@ export class TasksService {
     });
   }
 
-  async findAll(userId: number, projectId: number) {
+  async findAll(userId: number, query: FindTasksDto) {
+    const { projectId, status, search, page, limit } = query;
+
     const project = await this.prisma.project.findFirst({
       where: { id: projectId, members: { some: { userId } } },
     });
@@ -34,10 +37,28 @@ export class TasksService {
       throw new NotFoundException('Project not found');
     }
 
-    return this.prisma.task.findMany({
-      where: { projectId },
-      orderBy: { createdAt: 'desc' },
-    });
+    const where = {
+      projectId,
+      status,
+      title: search
+        ? { contains: search, mode: 'insensitive' as const }
+        : undefined,
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.task.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.task.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async findOne(userId: number, id: number) {
