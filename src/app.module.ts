@@ -6,9 +6,10 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TasksModule } from './tasks/tasks.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
-  imports: [PrismaModule, UsersModule, AuthModule, ProjectsModule, TasksModule],
+  imports: [PrismaModule, UsersModule, AuthModule, ProjectsModule, TasksModule, RedisModule],
   controllers: [AppController],
   providers: [AppService],
 })

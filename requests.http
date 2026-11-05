@@ -317,6 +317,10 @@ Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&status=FINISHED
 Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
+### D5k. Search text longer than 100 characters (400)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&search=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
 ### D6. List tasks without projectId (400)
 GET {{baseUrl}}/tasks
 Authorization: Bearer {{ownerLogin.response.body.accessToken}}

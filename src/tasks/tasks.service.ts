@@ -3,10 +3,14 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { FindTasksDto } from './dto/find-tasks.dto';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
 
   async create(userId: number, dto: CreateTaskDto) {
     const project = await this.prisma.project.findFirst({
@@ -17,13 +21,16 @@ export class TasksService {
       throw new NotFoundException('Project not found');
     }
 
-    return this.prisma.task.create({
+    const task = await this.prisma.task.create({
       data: {
         title: dto.title,
         description: dto.description,
         projectId: dto.projectId,
       },
     });
+
+    await this.invalidateProjectCache(task.projectId);
+    return task;
   }
 
   async findAll(userId: number, query: FindTasksDto) {
@@ -35,6 +42,15 @@ export class TasksService {
 
     if (!project) {
       throw new NotFoundException('Project not found');
+    }
+
+    const cacheKey = `tasks:project:${projectId}:status:${status ?? 'all'}:search:${search ?? ''}:page:${page}:limit:${limit}`;
+
+    const cached = await this.redis.getJson<{ data: unknown[]; meta: object }>(
+      cacheKey,
+    );
+    if (cached) {
+      return cached;
     }
 
     const where = {
@@ -55,10 +71,14 @@ export class TasksService {
       this.prisma.task.count({ where }),
     ]);
 
-    return {
+    const result = {
       data,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
+
+    await this.redis.setJson(cacheKey, result, 60);
+
+    return result;
   }
 
   async findOne(userId: number, id: number) {
@@ -74,9 +94,9 @@ export class TasksService {
   }
 
   async update(userId: number, id: number, dto: UpdateTaskDto) {
-    await this.findOne(userId, id);
+    const existing = await this.findOne(userId, id);
 
-    return this.prisma.task.update({
+    const task = await this.prisma.task.update({
       where: { id },
       data: {
         title: dto.title ?? undefined,
@@ -84,13 +104,20 @@ export class TasksService {
         status: dto.status,
       },
     });
+
+    await this.invalidateProjectCache(existing.projectId);
+    return task;
   }
 
   async remove(userId: number, id: number) {
-    await this.findOne(userId, id);
+    const existing = await this.findOne(userId, id);
 
-    return this.prisma.task.delete({
-      where: { id },
-    });
+    await this.prisma.task.delete({ where: { id } });
+
+    await this.invalidateProjectCache(existing.projectId);
+  }
+
+  private async invalidateProjectCache(projectId: number) {
+    await this.redis.delByPrefix(`tasks:project:${projectId}:`);
   }
 }
