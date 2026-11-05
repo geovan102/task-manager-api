@@ -75,4 +75,14 @@ export class ProjectsController {
   ) {
     return this.projectsService.listMembers(req.user.sub, id);
   }
+
+  @Delete(':id/members/:userId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeMember(
+    @Req() req: { user: { sub: number } },
+    @Param('id', ParseIntPipe) id: number,
+    @Param('userId', ParseIntPipe) memberUserId: number,
+  ) {
+    return this.projectsService.removeMember(req.user.sub, id, memberUserId);
+  }
 }

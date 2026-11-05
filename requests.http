@@ -373,6 +373,36 @@ Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 GET {{baseUrl}}/tasks/{{createTask.response.body.id}}
 Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
+### E3a. Who am I? Maria (so we know her user id)
+# @name memberMe
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{memberLogin.response.body.accessToken}}
+
+### E3b. Who am I? Owner (so we know the owner's user id)
+# @name ownerMe
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### E3c. Maria (member) tries to remove the owner (403)
+DELETE {{baseUrl}}/projects/{{createProject.response.body.id}}/members/{{ownerMe.response.body.sub}}
+Authorization: Bearer {{memberLogin.response.body.accessToken}}
+
+### E3d. Owner tries to remove himself (400)
+DELETE {{baseUrl}}/projects/{{createProject.response.body.id}}/members/{{ownerMe.response.body.sub}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### E3e. Owner removes Maria (204, no body)
+DELETE {{baseUrl}}/projects/{{createProject.response.body.id}}/members/{{memberMe.response.body.sub}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### E3f. Remove Maria again (404, she is no longer a member)
+DELETE {{baseUrl}}/projects/{{createProject.response.body.id}}/members/{{memberMe.response.body.sub}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### E3g. Maria asks for the project (404, she lost access)
+GET {{baseUrl}}/projects/{{createProject.response.body.id}}
+Authorization: Bearer {{memberLogin.response.body.accessToken}}
+
 ### E4. Owner deletes the project (204, its remaining tasks and members are deleted too)
 DELETE {{baseUrl}}/projects/{{createProject.response.body.id}}
 Authorization: Bearer {{ownerLogin.response.body.accessToken}}
@@ -380,3 +410,62 @@ Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 ### E5. The deleted project is gone (404)
 GET {{baseUrl}}/projects/{{createProject.response.body.id}}
 Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+################################################################
+# F. REDIS: cache and rate limit experiments
+################################################################
+
+### F1. Register an outsider (201 the first time, 409 afterwards)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "email": "nikos@example.com",
+  "name": "Nikos",
+  "password": "fake-password-123"
+}
+
+### F2. Login as the outsider (200)
+# @name nikosLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "nikos@example.com",
+  "password": "fake-password-123"
+}
+
+### F3. Owner lists the tasks (200)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### F4. Owner lists page 1, one item per page (200)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&limit=1&page=1
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### F5. Owner lists page 2, one item per page (200)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&limit=1&page=2
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+### F6. The outsider asks for the same list (404, even if the answer is cached)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}
+Authorization: Bearer {{nikosLogin.response.body.accessToken}}
+
+### F7. Owner creates a task (201)
+POST {{baseUrl}}/tasks
+Content-Type: application/json
+Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+
+{
+  "title": "Cache test task",
+  "projectId": {{createProject.response.body.id}}
+}
+
+### F8. Wrong password, send this 6 times in a row (5 x 401, then 429)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "wrong-password"
+}

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -114,6 +115,23 @@ export class ProjectsService {
       },
       orderBy: { id: 'asc' },
     });
+  }
+
+  async removeMember(userId: number, projectId: number, memberUserId: number) {
+    await this.assertOwner(userId, projectId);
+
+    const membership = await this.prisma.projectMember.findUnique({
+      where: { userId_projectId: { userId: memberUserId, projectId } },
+    });
+    if (!membership) {
+      throw new NotFoundException('Member not found');
+    }
+
+    if (membership.role === 'OWNER') {
+      throw new BadRequestException('The project owner cannot be removed');
+    }
+
+    await this.prisma.projectMember.delete({ where: { id: membership.id } });
   }
 
   private async assertOwner(userId: number, projectId: number) {
