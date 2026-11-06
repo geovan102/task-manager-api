@@ -5,14 +5,20 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { AddMemberDto } from './dto/add-member.dto';
+import { INVITATION_QUEUE, InvitationJobData } from './invitation.queue';
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @InjectQueue(INVITATION_QUEUE) private readonly invitationQueue: Queue,
+  ) {}
 
   async create(ownerId: number, dto: CreateProjectDto) {
     return this.prisma.project.create({
@@ -88,7 +94,7 @@ export class ProjectsService {
       throw new ConflictException('User is already a member');
     }
 
-    return this.prisma.projectMember.create({
+    const membership = await this.prisma.projectMember.create({
       data: {
         userId: user.id,
         projectId,
@@ -101,6 +107,26 @@ export class ProjectsService {
         user: { select: { id: true, email: true, name: true } },
       },
     });
+
+    const project = await this.prisma.project.findUniqueOrThrow({
+      where: { id: projectId },
+      select: { name: true },
+    });
+
+    const jobData: InvitationJobData = {
+      projectId,
+      projectName: project.name,
+      email: dto.email,
+    };
+
+    await this.invitationQueue.add('send-invitation', jobData, {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 2000 },
+      removeOnComplete: { count: 100 },
+      removeOnFail: { count: 100 },
+    });
+
+    return membership;
   }
 
   async listMembers(userId: number, projectId: number) {
