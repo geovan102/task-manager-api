@@ -26,7 +26,7 @@ export class UsersService {
       },
     });
 
-    const { password, ...result } = user;
+    const { password: _password, ...result } = user;
     return result;
   }
 }

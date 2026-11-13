@@ -1,0 +1,325 @@
+@baseUrl = http://localhost:3000
+@password = fake-password-123
+
+### A1 Register the OWNER
+# Expected: 201 and a user WITHOUT a password field. (409 if you already ran it)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "email": "owner1@example.com",
+  "name": "Olga Owner",
+  "password": "{{password}}"
+}
+
+### A2 Register the MEMBER
+# Expected: 201 (409 if already registered)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "email": "member1@example.com",
+  "name": "Mark Member",
+  "password": "{{password}}"
+}
+
+### A3 Register the OUTSIDER
+# Expected: 201 (409 if already registered)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "email": "outsider1@example.com",
+  "name": "Oscar Outsider",
+  "password": "{{password}}"
+}
+
+### A4 Duplicate email
+# Expected: 409 (the email already exists)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "email": "owner1@example.com",
+  "name": "Olga Again",
+  "password": "{{password}}"
+}
+
+### A5 Invalid email
+# Expected: 400 (message says the email must be an email)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "email": "not-an-email",
+  "name": "Test",
+  "password": "{{password}}"
+}
+
+### A6 Password too short
+# Expected: 400 (password must be at least 8 characters)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "email": "short1@example.com",
+  "name": "Test",
+  "password": "abc"
+}
+
+### A7 Extra field that must be ignored
+# Expected: 201 and the response has NO "isAdmin" field. (409 if you ran it before)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "email": "extra1@example.com",
+  "name": "Extra",
+  "password": "{{password}}",
+  "isAdmin": true
+}
+
+### A8 Login OWNER
+# Expected: 200 or 201 with an accessToken
+# @name loginOwner
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "owner1@example.com",
+  "password": "{{password}}"
+}
+
+### A9 Login MEMBER
+# Expected: 200 or 201 with an accessToken
+# @name loginMember
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "member1@example.com",
+  "password": "{{password}}"
+}
+
+### A10 Login OUTSIDER
+# Expected: 200 or 201 with an accessToken
+# @name loginOutsider
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "outsider1@example.com",
+  "password": "{{password}}"
+}
+
+### A11 Wrong password
+# Expected: 401
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "owner1@example.com",
+  "password": "wrong-password-999"
+}
+
+### A12 Unknown email
+# Expected: 401 (the SAME answer as A11, so nobody can learn which emails exist)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "nobody1@example.com",
+  "password": "{{password}}"
+}
+
+### A13 Who am I (with the owner token)
+# Expected: 200 and the owner data, without a password
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### A14 Who am I (without a token)
+# Expected: 401
+GET {{baseUrl}}/auth/me
+
+### A15 Who am I (with a garbage token)
+# Expected: 401
+GET {{baseUrl}}/auth/me
+Authorization: Bearer not-a-real-token
+
+
+### B1 OWNER creates the main project
+# Expected: 201 with id, name, ownerId
+# @name createProject
+POST {{baseUrl}}/projects
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Final test project",
+  "description": "Created by the final test"
+}
+
+### B2 MEMBER lists projects (not added yet)
+# Expected: 200 and the list does NOT contain the project from B1
+GET {{baseUrl}}/projects
+Authorization: Bearer {{loginMember.response.body.accessToken}}
+
+### B3 OUTSIDER reads the project
+# Expected: 404 (outsiders must not learn that the project exists)
+GET {{baseUrl}}/projects/{{createProject.response.body.id}}
+Authorization: Bearer {{loginOutsider.response.body.accessToken}}
+
+### B4 OWNER adds the MEMBER
+# Expected: 201 with role MEMBER and the user (id, email, name)
+# Also check the SERVER terminal: two [InvitationProcessor] lines, about 2 seconds apart
+# @name addMember
+POST {{baseUrl}}/projects/{{createProject.response.body.id}}/members
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "email": "member1@example.com"
+}
+
+### B5 Add the same member again
+# Expected: 409
+POST {{baseUrl}}/projects/{{createProject.response.body.id}}/members
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "email": "member1@example.com"
+}
+
+### B6 Add a user that does not exist
+# Expected: 404
+POST {{baseUrl}}/projects/{{createProject.response.body.id}}/members
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "email": "nobody1@example.com"
+}
+
+### B7 OUTSIDER tries to add someone
+# Expected: 404 (not a member, so the project "does not exist" for them)
+POST {{baseUrl}}/projects/{{createProject.response.body.id}}/members
+Authorization: Bearer {{loginOutsider.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "email": "outsider1@example.com"
+}
+
+### B8 MEMBER tries to add someone
+# Expected: 403 (a member, but not the owner)
+POST {{baseUrl}}/projects/{{createProject.response.body.id}}/members
+Authorization: Bearer {{loginMember.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "email": "outsider1@example.com"
+}
+
+### B9 MEMBER lists the members
+# Expected: 200 and exactly two members: one OWNER and one MEMBER
+GET {{baseUrl}}/projects/{{createProject.response.body.id}}/members
+Authorization: Bearer {{loginMember.response.body.accessToken}}
+
+### B10 MEMBER reads the project
+# Expected: 200 (now the member can see it)
+GET {{baseUrl}}/projects/{{createProject.response.body.id}}
+Authorization: Bearer {{loginMember.response.body.accessToken}}
+
+### B11 MEMBER renames the project (EXPLORATORY)
+# We do not know the answer yet. Write down what you get and tell me.
+PATCH {{baseUrl}}/projects/{{createProject.response.body.id}}
+Authorization: Bearer {{loginMember.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Renamed by the member"
+}
+
+### B12 MEMBER deletes the project
+# Expected: 403
+DELETE {{baseUrl}}/projects/{{createProject.response.body.id}}
+Authorization: Bearer {{loginMember.response.body.accessToken}}
+
+### B13 OUTSIDER deletes the project
+# Expected: 404
+DELETE {{baseUrl}}/projects/{{createProject.response.body.id}}
+Authorization: Bearer {{loginOutsider.response.body.accessToken}}
+
+### B14 OWNER renames the project to an empty name
+# Expected: 400 (validation: the name cannot be empty)
+PATCH {{baseUrl}}/projects/{{createProject.response.body.id}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": ""
+}
+
+### B15 The id is not a number
+# Expected: 400 (ParseIntPipe rejects "abc")
+GET {{baseUrl}}/projects/abc
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### B16 A project that does not exist
+# Expected: 404
+GET {{baseUrl}}/projects/999999
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### B17 OWNER creates a TEMP project (for the removal tests)
+# Expected: 201
+# @name createTemp
+POST {{baseUrl}}/projects
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Temp project",
+  "description": "Will be deleted"
+}
+
+### B18 OWNER adds the MEMBER to the temp project
+# Expected: 201
+# @name addMemberTemp
+POST {{baseUrl}}/projects/{{createTemp.response.body.id}}/members
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "email": "member1@example.com"
+}
+
+### B19 OWNER tries to remove the OWNER
+# Expected: 400 (the owner cannot be removed)
+DELETE {{baseUrl}}/projects/{{createTemp.response.body.id}}/members/{{createTemp.response.body.ownerId}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### B20 OWNER removes the MEMBER
+# Expected: 204 (no body)
+DELETE {{baseUrl}}/projects/{{createTemp.response.body.id}}/members/{{addMemberTemp.response.body.user.id}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### B21 Remove the same member again
+# Expected: 404 (Member not found)
+DELETE {{baseUrl}}/projects/{{createTemp.response.body.id}}/members/{{addMemberTemp.response.body.user.id}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### B22 The removed MEMBER reads the temp project
+# Expected: 404 (access is gone)
+GET {{baseUrl}}/projects/{{createTemp.response.body.id}}
+Authorization: Bearer {{loginMember.response.body.accessToken}}
+
+### B23 OWNER deletes the temp project
+# Expected: 204
+DELETE {{baseUrl}}/projects/{{createTemp.response.body.id}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### B24 Read the deleted temp project
+# Expected: 404
+GET {{baseUrl}}/projects/{{createTemp.response.body.id}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
