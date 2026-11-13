@@ -1,471 +1,575 @@
-# Task Manager API - basic test file (REST Client extension for VS Code)
-#
-# How to use:
-#   1. Start the database (docker compose up -d) and the server (npm run start:dev).
-#   2. Send the requests from top to bottom, one at a time ("Send Request").
-#   3. Every title says which status code to expect.
-#   4. Ids and tokens are copied automatically from earlier responses.
-#   5. Tokens expire after 1 hour. If you get 401, send section A again.
-#
-# Actors:
-#   owner  = test@example.com    creates the project
-#   member = maria@example.com   gets invited to the project
-#
-# Only fake data lives in this file. Never paste real tokens or passwords here.
-
 @baseUrl = http://localhost:3000
+@password = fake-password-123
 
+# =====================================================================
+# PART A: register, login, token
+# =====================================================================
 
-################################################################
-# A. SETUP: users and logins
-################################################################
-
-### A1. Register the owner (201 the first time, 409 if it already exists - both are fine)
+### A1 Register the OWNER
+# Expected: 201 and a user WITHOUT a password field. (409 if you already ran it)
 POST {{baseUrl}}/users
 Content-Type: application/json
 
 {
-  "email": "test@example.com",
-  "name": "Owner",
-  "password": "fake-password"
+  "email": "owner1@example.com",
+  "name": "Olga Owner",
+  "password": "{{password}}"
 }
 
-### A2. Register the member (201 the first time, 409 afterwards - both are fine)
+### A2 Register the MEMBER
+# Expected: 201 (409 if already registered)
 POST {{baseUrl}}/users
 Content-Type: application/json
 
 {
-  "email": "maria@example.com",
-  "name": "Maria",
-  "password": "fake-password-123"
+  "email": "member1@example.com",
+  "name": "Mark Member",
+  "password": "{{password}}"
 }
 
-### A3. Register with invalid data (400)
+### A3 Register the OUTSIDER
+# Expected: 201 (409 if already registered)
 POST {{baseUrl}}/users
 Content-Type: application/json
 
 {
-  "email": "abc",
-  "name": "",
-  "password": "123"
+  "email": "outsider1@example.com",
+  "name": "Oscar Outsider",
+  "password": "{{password}}"
 }
 
-### A4. Login as owner (200, returns accessToken)
-# @name ownerLogin
+### A4 Duplicate email
+# Expected: 409 (the email already exists)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "email": "owner1@example.com",
+  "name": "Olga Again",
+  "password": "{{password}}"
+}
+
+### A5 Invalid email
+# Expected: 400 (message says the email must be an email)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "email": "not-an-email",
+  "name": "Test",
+  "password": "{{password}}"
+}
+
+### A6 Password too short
+# Expected: 400 (password must be at least 8 characters)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "email": "short1@example.com",
+  "name": "Test",
+  "password": "abc"
+}
+
+### A7 Extra field that must be ignored
+# Expected: 201 and the response has NO "isAdmin" field. (409 if you ran it before)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+  "email": "extra1@example.com",
+  "name": "Extra",
+  "password": "{{password}}",
+  "isAdmin": true
+}
+
+### A8 Login OWNER
+# Expected: 200 or 201 with an accessToken
+# @name loginOwner
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "email": "test@example.com",
-  "password": "fake-password"
+  "email": "owner1@example.com",
+  "password": "{{password}}"
 }
 
-### A5. Login as member (200, returns accessToken)
-# @name memberLogin
+### A9 Login MEMBER
+# Expected: 200 or 201 with an accessToken
+# @name loginMember
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "email": "maria@example.com",
-  "password": "fake-password-123"
+  "email": "member1@example.com",
+  "password": "{{password}}"
 }
 
-### A6. Login with a wrong password (401)
+### A10 Login OUTSIDER
+# Expected: 200 or 201 with an accessToken
+# @name loginOutsider
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "email": "test@example.com",
-  "password": "wrong-password"
+  "email": "outsider1@example.com",
+  "password": "{{password}}"
 }
 
-### A7. Who am I? Owner (200)
+### A11 Wrong password
+# Expected: 401
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "owner1@example.com",
+  "password": "wrong-password-999"
+}
+
+### A12 Unknown email
+# Expected: 401 (the SAME answer as A11, so nobody can learn which emails exist)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "nobody1@example.com",
+  "password": "{{password}}"
+}
+
+### A13 Who am I (with the owner token)
+# Expected: 200 and the owner data, without a password
 GET {{baseUrl}}/auth/me
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 
-### A8. Protected endpoint without a token (401)
+### A14 Who am I (without a token)
+# Expected: 401
 GET {{baseUrl}}/auth/me
 
-################################################################
-# B. PROJECTS: the owner does CRUD
-################################################################
+### A15 Who am I (with a garbage token)
+# Expected: 401
+GET {{baseUrl}}/auth/me
+Authorization: Bearer not-a-real-token
 
-### B1. Create a project (201, the owner also becomes a member with role OWNER)
+# =====================================================================
+# PART B: projects and members
+# =====================================================================
+
+### B1 OWNER creates the main project
+# Expected: 201 with id, name, ownerId
 # @name createProject
 POST {{baseUrl}}/projects
-Content-Type: application/json
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-{
-  "name": "Website",
-  "description": "Test project"
-}
-
-### B2. Create a project with an empty name (400)
-POST {{baseUrl}}/projects
-Content-Type: application/json
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-{
-  "name": ""
-}
-
-### B3. Create a project without a token (401)
-POST {{baseUrl}}/projects
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 Content-Type: application/json
 
 {
-  "name": "Website"
+  "name": "Final test project",
+  "description": "Created by the final test"
 }
 
-### B4. List my projects (200, contains the new project)
+### B2 MEMBER lists projects (not added yet)
+# Expected: 200 and the list does NOT contain the project from B1
 GET {{baseUrl}}/projects
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+Authorization: Bearer {{loginMember.response.body.accessToken}}
 
-### B5. Get one project (200)
+### B3 OUTSIDER reads the project
+# Expected: 404 (outsiders must not learn that the project exists)
 GET {{baseUrl}}/projects/{{createProject.response.body.id}}
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+Authorization: Bearer {{loginOutsider.response.body.accessToken}}
 
-### B6. Get a project that does not exist (404)
-GET {{baseUrl}}/projects/999999
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-### B7. Get a project with an id that is not a number (400)
-GET {{baseUrl}}/projects/abc
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-### B8. Update only the name (200)
-PATCH {{baseUrl}}/projects/{{createProject.response.body.id}}
-Content-Type: application/json
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-{
-  "name": "Website v2"
-}
-
-### B9. Update with an empty name (400)
-PATCH {{baseUrl}}/projects/{{createProject.response.body.id}}
-Content-Type: application/json
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-{
-  "name": ""
-}
-
-### B10. Try to change the owner through the body (200, the ownerId field is ignored)
-PATCH {{baseUrl}}/projects/{{createProject.response.body.id}}
-Content-Type: application/json
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-{
-  "name": "Website v3",
-  "ownerId": 99
-}
-
-### B11. Someone who is NOT a member asks for the project (404, it does not exist for her)
-GET {{baseUrl}}/projects/{{createProject.response.body.id}}
-Authorization: Bearer {{memberLogin.response.body.accessToken}}
-
-### B12. The same person lists her projects (200, empty list [])
-GET {{baseUrl}}/projects
-Authorization: Bearer {{memberLogin.response.body.accessToken}}
-
-################################################################
-# C. MEMBERS: invitations and roles
-################################################################
-
-### C1. Owner invites Maria (201, role MEMBER, no password in the answer)
+### B4 OWNER adds the MEMBER
+# Expected: 201 with role MEMBER and the user (id, email, name)
+# Also check the SERVER terminal: two [InvitationProcessor] lines, about 2 seconds apart
+# @name addMember
 POST {{baseUrl}}/projects/{{createProject.response.body.id}}/members
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 Content-Type: application/json
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
-  "email": "maria@example.com"
+  "email": "member1@example.com"
 }
 
-### C2. Invite the same person again (409)
+### B5 Add the same member again
+# Expected: 409
 POST {{baseUrl}}/projects/{{createProject.response.body.id}}/members
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 Content-Type: application/json
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
-  "email": "maria@example.com"
+  "email": "member1@example.com"
 }
 
-### C3. Invite an email that has no account (404)
+### B6 Add a user that does not exist
+# Expected: 404
 POST {{baseUrl}}/projects/{{createProject.response.body.id}}/members
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 Content-Type: application/json
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
-  "email": "nobody@example.com"
+  "email": "nobody1@example.com"
 }
 
-### C4. Owner lists the members (200, two entries: OWNER and MEMBER)
+### B7 OUTSIDER tries to add someone
+# Expected: 404 (not a member, so the project "does not exist" for them)
+POST {{baseUrl}}/projects/{{createProject.response.body.id}}/members
+Authorization: Bearer {{loginOutsider.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "email": "outsider1@example.com"
+}
+
+### B8 MEMBER tries to add someone
+# Expected: 403 (a member, but not the owner)
+POST {{baseUrl}}/projects/{{createProject.response.body.id}}/members
+Authorization: Bearer {{loginMember.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "email": "outsider1@example.com"
+}
+
+### B9 MEMBER lists the members
+# Expected: 200 and exactly two members: one OWNER and one MEMBER
 GET {{baseUrl}}/projects/{{createProject.response.body.id}}/members
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+Authorization: Bearer {{loginMember.response.body.accessToken}}
 
-### C5. Now Maria can see the project (200)
+### B10 MEMBER reads the project
+# Expected: 200 (now the member can see it)
 GET {{baseUrl}}/projects/{{createProject.response.body.id}}
-Authorization: Bearer {{memberLogin.response.body.accessToken}}
+Authorization: Bearer {{loginMember.response.body.accessToken}}
 
-### C6. Maria (member) tries to rename the project (403: she is known, but not allowed)
+### B11 MEMBER renames the project (EXPLORATORY)
+# We do not know the answer yet. Write down what you get and tell me.
 PATCH {{baseUrl}}/projects/{{createProject.response.body.id}}
+Authorization: Bearer {{loginMember.response.body.accessToken}}
 Content-Type: application/json
-Authorization: Bearer {{memberLogin.response.body.accessToken}}
 
 {
-  "name": "Renamed by member"
+  "name": "Renamed by the member"
 }
 
-### C7. Maria (member) tries to invite someone (403)
-POST {{baseUrl}}/projects/{{createProject.response.body.id}}/members
+### B12 MEMBER deletes the project
+# Expected: 403
+DELETE {{baseUrl}}/projects/{{createProject.response.body.id}}
+Authorization: Bearer {{loginMember.response.body.accessToken}}
+
+### B13 OUTSIDER deletes the project
+# Expected: 404
+DELETE {{baseUrl}}/projects/{{createProject.response.body.id}}
+Authorization: Bearer {{loginOutsider.response.body.accessToken}}
+
+### B14 OWNER renames the project to an empty name
+# Expected: 400 (validation: the name cannot be empty)
+PATCH {{baseUrl}}/projects/{{createProject.response.body.id}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 Content-Type: application/json
-Authorization: Bearer {{memberLogin.response.body.accessToken}}
 
 {
-  "email": "test@example.com"
+  "name": ""
 }
 
-################################################################
-# D. TASKS: owner and member work on the same project
-################################################################
+### B15 The id is not a number
+# Expected: 400 (ParseIntPipe rejects "abc")
+GET {{baseUrl}}/projects/abc
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 
-### D1. Owner creates a task (201, status is TODO)
-# @name createTask
+### B16 A project that does not exist
+# Expected: 404
+GET {{baseUrl}}/projects/999999
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### B17 OWNER creates a TEMP project (for the removal tests)
+# Expected: 201
+# @name createTemp
+POST {{baseUrl}}/projects
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Temp project",
+  "description": "Will be deleted"
+}
+
+### B18 OWNER adds the MEMBER to the temp project
+# Expected: 201
+# @name addMemberTemp
+POST {{baseUrl}}/projects/{{createTemp.response.body.id}}/members
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "email": "member1@example.com"
+}
+
+### B19 OWNER tries to remove the OWNER
+# Expected: 400 (the owner cannot be removed)
+DELETE {{baseUrl}}/projects/{{createTemp.response.body.id}}/members/{{createTemp.response.body.ownerId}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### B20 OWNER removes the MEMBER
+# Expected: 204 (no body)
+DELETE {{baseUrl}}/projects/{{createTemp.response.body.id}}/members/{{addMemberTemp.response.body.user.id}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### B21 Remove the same member again
+# Expected: 404 (Member not found)
+DELETE {{baseUrl}}/projects/{{createTemp.response.body.id}}/members/{{addMemberTemp.response.body.user.id}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### B22 The removed MEMBER reads the temp project
+# Expected: 404 (access is gone)
+GET {{baseUrl}}/projects/{{createTemp.response.body.id}}
+Authorization: Bearer {{loginMember.response.body.accessToken}}
+
+### B23 OWNER deletes the temp project
+# Expected: 204
+DELETE {{baseUrl}}/projects/{{createTemp.response.body.id}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### B24 Read the deleted temp project
+# Expected: 404
+GET {{baseUrl}}/projects/{{createTemp.response.body.id}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+# =====================================================================
+# PART C: tasks (they live in the main project from B1)
+# The OWNER and the MEMBER are both members of that project now.
+# =====================================================================
+
+### C1 OWNER creates task 1
+# Expected: 201 with id, title, projectId (status should be TODO)
+# @name createTask1
 POST {{baseUrl}}/tasks
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 Content-Type: application/json
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
-  "title": "Design homepage",
-  "description": "First draft",
+  "title": "Buy paint",
+  "description": "Two cans of white paint",
   "projectId": {{createProject.response.body.id}}
 }
 
-### D2. Create a task with projectId as text (400)
+### C2 OWNER creates task 2
+# Expected: 201
+# @name createTask2
 POST {{baseUrl}}/tasks
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 Content-Type: application/json
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
-  "title": "Bad task",
-  "projectId": "abc"
+  "title": "Paint the wall",
+  "projectId": {{createProject.response.body.id}}
 }
 
-### D3. Create a task in a project that does not exist (404)
+### C3 MEMBER creates task 3
+# Expected: 201 (we expect members to be allowed to add tasks; tell me if not)
+# @name createTask3
 POST {{baseUrl}}/tasks
+Authorization: Bearer {{loginMember.response.body.accessToken}}
 Content-Type: application/json
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
-  "title": "Ghost task",
+  "title": "Move the furniture",
+  "projectId": {{createProject.response.body.id}}
+}
+
+### C4 OUTSIDER creates a task in the project
+# Expected: 404
+POST {{baseUrl}}/tasks
+Authorization: Bearer {{loginOutsider.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Sneaky task",
+  "projectId": {{createProject.response.body.id}}
+}
+
+### C5 Empty title
+# Expected: 400
+POST {{baseUrl}}/tasks
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "title": "",
+  "projectId": {{createProject.response.body.id}}
+}
+
+### C6 Missing projectId
+# Expected: 400
+POST {{baseUrl}}/tasks
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "title": "No project"
+}
+
+### C7 A project that does not exist
+# Expected: 404
+POST {{baseUrl}}/tasks
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Lost task",
   "projectId": 999999
 }
 
-### D4. Maria (member) creates a task too (201)
-POST {{baseUrl}}/tasks
-Content-Type: application/json
-Authorization: Bearer {{memberLogin.response.body.accessToken}}
-
-{
-  "title": "Write copy",
-  "projectId": {{createProject.response.body.id}}
-}
-
-### D5. List the tasks of the project (200, two tasks)
+### C8 OWNER lists the tasks (first time: cache MISS)
+# Expected: 200 with { data: [...], meta: {...} } and 3 tasks
+# Then run in the terminal: docker exec taskmanager-redis redis-cli keys "tasks:*"
+# You should see at least one key (the cache was filled).
 GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 
-### D5a. Page 1 with one item per page (200, 1 task, totalPages 2)
-GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&limit=1&page=1
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+### C9 OWNER lists the tasks again (cache HIT)
+# Expected: 200 and exactly the same data as C8 (but served from Redis)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 
-### D5b. Page 2 with one item per page (200, the other task)
-GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&limit=1&page=2
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+### C10 OUTSIDER lists the tasks
+# Expected: 404 (the membership check runs BEFORE the cache, so the cached data stays private)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}
+Authorization: Bearer {{loginOutsider.response.body.accessToken}}
 
-### D5c. Page 3 does not exist (200, empty data, total still 2)
-GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&limit=1&page=3
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+### C11 MEMBER lists the tasks
+# Expected: 200 with the same 3 tasks
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}
+Authorization: Bearer {{loginMember.response.body.accessToken}}
 
-### D5d. Search in the title, lower case (200, only "Design homepage")
-GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&search=design
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-### D5e. Filter by status TODO (200, both tasks)
+### C12 Filter by status TODO
+# Expected: 200 and only tasks with status TODO
 GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&status=TODO
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 
-### D5f. Filter by status DONE (200, empty data, total 0)
-GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&status=DONE
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+### C13 Search (upper case on purpose)
+# Expected: 200 and exactly 2 tasks: "Buy paint" and "Paint the wall" (search ignores case)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&search=PAINT
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 
-### D5g. Page 0 is not allowed (400)
+### C14 Pagination: page 1 with limit 1
+# Expected: 200, data has 1 task, meta shows the total (3) and page 1
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&page=1&limit=1
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### C15 Pagination: page 2 with limit 1
+# Expected: 200, data has 1 DIFFERENT task
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&page=2&limit=1
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### C16 limit too big
+# Expected: 400 (the maximum is 50)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&limit=51
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### C17 page is zero
+# Expected: 400 (the minimum is 1)
 GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&page=0
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 
-### D5h. Limit too big (400)
-GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&limit=1000
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+### C18 Invalid status
+# Expected: 400
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&status=WRONG
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 
-### D5i. Page that is not a number (400)
-GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&page=abc
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-### D5j. Status that is not allowed (400)
-GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&status=FINISHED
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-### D5k. Search text longer than 100 characters (400)
-GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&search=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-### D6. List tasks without projectId (400)
+### C19 Missing projectId in the query
+# Expected: 400
 GET {{baseUrl}}/tasks
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 
-### D7. Get one task (200)
-GET {{baseUrl}}/tasks/{{createTask.response.body.id}}
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
+### C20 OWNER reads task 1
+# Expected: 200
+GET {{baseUrl}}/tasks/{{createTask1.response.body.id}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 
-### D8. Change the status to DONE (200, updatedAt changes)
-PATCH {{baseUrl}}/tasks/{{createTask.response.body.id}}
+### C21 OUTSIDER reads task 1
+# Expected: 404
+GET {{baseUrl}}/tasks/{{createTask1.response.body.id}}
+Authorization: Bearer {{loginOutsider.response.body.accessToken}}
+
+### C22 A task that does not exist
+# Expected: 404
+GET {{baseUrl}}/tasks/999999
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### C23 OWNER moves task 1 to IN_PROGRESS
+# Expected: 200 and status IN_PROGRESS. This also clears the cache of the project.
+PATCH {{baseUrl}}/tasks/{{createTask1.response.body.id}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 Content-Type: application/json
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
-  "status": "DONE"
+  "status": "IN_PROGRESS"
 }
 
-### D9. Change the status to a value that is not allowed (400)
-PATCH {{baseUrl}}/tasks/{{createTask.response.body.id}}
+### C24 Filter by TODO again (proof that the cache was cleared)
+# Expected: 200 and task 1 is NOT in the list any more.
+# (If the old cached list came back, task 1 would still appear as TODO: that would be a bug.)
+GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&status=TODO
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### C25 Update with an invalid status
+# Expected: 400
+PATCH {{baseUrl}}/tasks/{{createTask1.response.body.id}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 Content-Type: application/json
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
-  "status": "FINISHED"
+  "status": "WRONG"
 }
 
-### D10. Try to move the task to another project (200, the projectId field is ignored)
-PATCH {{baseUrl}}/tasks/{{createTask.response.body.id}}
+### C26 OUTSIDER updates task 1
+# Expected: 404
+PATCH {{baseUrl}}/tasks/{{createTask1.response.body.id}}
+Authorization: Bearer {{loginOutsider.response.body.accessToken}}
 Content-Type: application/json
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
 
 {
-  "title": "Design homepage v2",
-  "projectId": 999999
+  "title": "Hacked title"
 }
 
-################################################################
-# E. DELETING: a task, then the whole project (cascade)
-################################################################
+### C27 MEMBER updates task 1 (EXPLORATORY)
+# We do not know the answer yet. Write down what you get and tell me.
+PATCH {{baseUrl}}/tasks/{{createTask1.response.body.id}}
+Authorization: Bearer {{loginMember.response.body.accessToken}}
+Content-Type: application/json
 
-### E1. Maria (member) tries to delete the project (403)
+{
+  "description": "Edited by the member"
+}
+
+### C28 OUTSIDER deletes task 2
+# Expected: 404
+DELETE {{baseUrl}}/tasks/{{createTask2.response.body.id}}
+Authorization: Bearer {{loginOutsider.response.body.accessToken}}
+
+### C29 OWNER deletes task 2
+# Expected: 204
+DELETE {{baseUrl}}/tasks/{{createTask2.response.body.id}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### C30 Read the deleted task 2
+# Expected: 404
+GET {{baseUrl}}/tasks/{{createTask2.response.body.id}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
+
+### C31 MEMBER deletes task 3 (EXPLORATORY)
+# We do not know the answer yet. Write down what you get and tell me.
+DELETE {{baseUrl}}/tasks/{{createTask3.response.body.id}}
+Authorization: Bearer {{loginMember.response.body.accessToken}}
+
+### C32 CLEAN UP: OWNER deletes the main project (it still has members and tasks)
+# Expected: 204. If you get 500, deleting a project that has members or tasks is broken.
 DELETE {{baseUrl}}/projects/{{createProject.response.body.id}}
-Authorization: Bearer {{memberLogin.response.body.accessToken}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 
-### E2. Owner deletes a task (204, no body)
-DELETE {{baseUrl}}/tasks/{{createTask.response.body.id}}
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-### E3. The deleted task is gone (404)
-GET {{baseUrl}}/tasks/{{createTask.response.body.id}}
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-### E3a. Who am I? Maria (so we know her user id)
-# @name memberMe
-GET {{baseUrl}}/auth/me
-Authorization: Bearer {{memberLogin.response.body.accessToken}}
-
-### E3b. Who am I? Owner (so we know the owner's user id)
-# @name ownerMe
-GET {{baseUrl}}/auth/me
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-### E3c. Maria (member) tries to remove the owner (403)
-DELETE {{baseUrl}}/projects/{{createProject.response.body.id}}/members/{{ownerMe.response.body.sub}}
-Authorization: Bearer {{memberLogin.response.body.accessToken}}
-
-### E3d. Owner tries to remove himself (400)
-DELETE {{baseUrl}}/projects/{{createProject.response.body.id}}/members/{{ownerMe.response.body.sub}}
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-### E3e. Owner removes Maria (204, no body)
-DELETE {{baseUrl}}/projects/{{createProject.response.body.id}}/members/{{memberMe.response.body.sub}}
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-### E3f. Remove Maria again (404, she is no longer a member)
-DELETE {{baseUrl}}/projects/{{createProject.response.body.id}}/members/{{memberMe.response.body.sub}}
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-### E3g. Maria asks for the project (404, she lost access)
+### C33 Read the deleted main project
+# Expected: 404
 GET {{baseUrl}}/projects/{{createProject.response.body.id}}
-Authorization: Bearer {{memberLogin.response.body.accessToken}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
 
-### E4. Owner deletes the project (204, its remaining tasks and members are deleted too)
-DELETE {{baseUrl}}/projects/{{createProject.response.body.id}}
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-### E5. The deleted project is gone (404)
-GET {{baseUrl}}/projects/{{createProject.response.body.id}}
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-################################################################
-# F. REDIS: cache and rate limit experiments
-################################################################
-
-### F1. Register an outsider (201 the first time, 409 afterwards)
-POST {{baseUrl}}/users
-Content-Type: application/json
-
-{
-  "email": "nikos@example.com",
-  "name": "Nikos",
-  "password": "fake-password-123"
-}
-
-### F2. Login as the outsider (200)
-# @name nikosLogin
-POST {{baseUrl}}/auth/login
-Content-Type: application/json
-
-{
-  "email": "nikos@example.com",
-  "password": "fake-password-123"
-}
-
-### F3. Owner lists the tasks (200)
-GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-### F4. Owner lists page 1, one item per page (200)
-GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&limit=1&page=1
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-### F5. Owner lists page 2, one item per page (200)
-GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}&limit=1&page=2
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-### F6. The outsider asks for the same list (404, even if the answer is cached)
-GET {{baseUrl}}/tasks?projectId={{createProject.response.body.id}}
-Authorization: Bearer {{nikosLogin.response.body.accessToken}}
-
-### F7. Owner creates a task (201)
-POST {{baseUrl}}/tasks
-Content-Type: application/json
-Authorization: Bearer {{ownerLogin.response.body.accessToken}}
-
-{
-  "title": "Cache test task",
-  "projectId": {{createProject.response.body.id}}
-}
-
-### F8. Wrong password, send this 6 times in a row (5 x 401, then 429)
-POST {{baseUrl}}/auth/login
-Content-Type: application/json
-
-{
-  "email": "test@example.com",
-  "password": "wrong-password"
-}
+### C34 Read task 1 after its project was deleted
+# Expected: 404 (the task went away with the project)
+GET {{baseUrl}}/tasks/{{createTask1.response.body.id}}
+Authorization: Bearer {{loginOwner.response.body.accessToken}}
