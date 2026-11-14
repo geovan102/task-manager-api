@@ -1,5 +1,7 @@
 # Task Manager API
 
+[![CI](https://github.com/geovan102/task-manager-api/actions/workflows/ci.yml/badge.svg)](https://github.com/geovan102/task-manager-api/actions/workflows/ci.yml)
+
 A Trello-like REST API for managing users, projects and tasks, built with NestJS.
 
 ## About
