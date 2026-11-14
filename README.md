@@ -6,7 +6,7 @@ A Trello-like REST API for managing users, projects and tasks, built with NestJS
 
 ## About
 
-I built this project to practice backend development and explore how to build a REST API with authentication, role-based access control, database management and background jobs.
+Task Manager API is a backend application that provides user authentication, project management, task organization and role-based access control. It demonstrates backend development concepts such as database management, caching, rate limiting, background job processing and automated testing.
 
 ## Features
 
@@ -40,7 +40,7 @@ I built this project to practice backend development and explore how to build a 
 
 ## API Documentation
 
-After starting the application, open Swagger UI:
+Swagger UI is available at:
 
 **http://localhost:3000/docs**
 
@@ -63,7 +63,8 @@ Log in using `POST /auth/login`, then click **Authorize** in Swagger and paste y
 1. Clone the repository:
 
    ```bash
-   git clone <your-repository-url>
+   git clone https://github.com/geovan102/task-manager-api.git
+   cd task-manager-api
    ```
 
 2. Navigate to the project directory.
