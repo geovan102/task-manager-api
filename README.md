@@ -133,18 +133,24 @@ The local services use the following ports:
 
 ```text
 task-manager-api/
-│
-├── src/
-│   ├── auth/        Authentication, JWT guard and rate limiting
-│   ├── users/       User registration
-│   ├── projects/    Projects, members and invitation jobs
-│   ├── tasks/       Tasks, filtering and pagination
-│   ├── redis/       Redis connection and caching
-│   └── prisma/      Prisma service
-│
+├── .github/workflows/   GitHub Actions CI (lint, build, tests)
+├── docs/                Screenshots used in this README
 ├── prisma/
-│   ├── schema.prisma
-│   └── migrations/
+│   ├── schema.prisma    Database models
+│   └── migrations/      SQL migrations
+├── scripts/             Helper scripts (authorization checks)
+├── src/
+│   ├── auth/            Authentication, JWT guard and rate limiting
+│   ├── users/           User registration
+│   ├── projects/        Projects, members and invitation jobs
+│   ├── tasks/           Tasks, filtering and pagination
+│   ├── redis/           Redis connection and caching
+│   └── prisma/          Prisma service
+├── test/                NestJS e2e template
+├── Dockerfile           Production image of the API
+├── docker-compose.yml   PostgreSQL, Redis and the API
+└── requests.http        Manual request collection for testing
+```
 
 ## Tests
 
