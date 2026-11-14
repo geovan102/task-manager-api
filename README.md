@@ -132,18 +132,19 @@ The local services use the following ports:
 ## Project Structure
 
 ```text
-src/
-  auth/        Authentication, JWT guard and rate limiting
-  users/       User registration
-  projects/    Projects, members and invitation jobs
-  tasks/       Tasks, filtering and pagination
-  redis/       Redis connection and caching
-  prisma/      Prisma service
-
-prisma/
-  schema.prisma
-  migrations/
-```
+task-manager-api/
+│
+├── src/
+│   ├── auth/        Authentication, JWT guard and rate limiting
+│   ├── users/       User registration
+│   ├── projects/    Projects, members and invitation jobs
+│   ├── tasks/       Tasks, filtering and pagination
+│   ├── redis/       Redis connection and caching
+│   └── prisma/      Prisma service
+│
+├── prisma/
+│   ├── schema.prisma
+│   └── migrations/
 
 ## Tests
 
