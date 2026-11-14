@@ -56,7 +56,7 @@ export class ProjectsService {
   }
 
   async update(ownerId: number, id: number, dto: UpdateProjectDto) {
-    await this.findOne(ownerId, id);
+    await this.assertOwner(ownerId, id);
 
     return this.prisma.project.update({
       where: { id },
