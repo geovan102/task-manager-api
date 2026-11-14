@@ -46,6 +46,11 @@ After starting the application, open Swagger UI:
 
 Log in using `POST /auth/login`, then click **Authorize** in Swagger and paste your JWT token to access protected endpoints.
 
+## Screenshots
+
+![Swagger overview](docs/swagger-overview.png)
+![Example request](docs/swagger-request.png)
+
 ## Getting Started
 
 ### Requirements
@@ -66,11 +71,13 @@ Log in using `POST /auth/login`, then click **Authorize** in Swagger and paste y
 3. Copy the example environment file:
 
    **Windows:**
+
    ```bash
    copy .env.example .env
    ```
 
    **macOS / Linux:**
+
    ```bash
    cp .env.example .env
    ```
