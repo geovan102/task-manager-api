@@ -38,6 +38,52 @@ Task Manager API is a backend application that provides user authentication, pro
 - Docker
 - Docker Compose
 
+## Database Model
+
+```mermaid
+erDiagram
+    USER ||--o{ PROJECT : owns
+    USER ||--o{ PROJECT_MEMBER : "joins as"
+    PROJECT ||--o{ PROJECT_MEMBER : has
+    PROJECT ||--o{ TASK : contains
+    USER |o--o{ TASK : "is assigned"
+
+    USER {
+        int id PK
+        string email UK
+        string name
+        string password "bcrypt hash"
+        datetime createdAt
+    }
+    PROJECT {
+        int id PK
+        string name
+        string description "optional"
+        datetime createdAt
+        int ownerId FK
+    }
+    PROJECT_MEMBER {
+        int id PK
+        string role "OWNER or MEMBER"
+        int userId FK
+        int projectId FK
+    }
+    TASK {
+        int id PK
+        string title
+        string description "optional"
+        string status "TODO, IN_PROGRESS or DONE"
+        datetime createdAt
+        datetime updatedAt
+        int projectId FK
+        int assigneeId FK "optional"
+    }
+```
+
+- `PROJECT_MEMBER` connects users and projects (many-to-many) and stores the role.
+- The project creator is also a member with the `OWNER` role.
+- Deleting a project deletes its members and tasks (cascade).
+
 ## API Documentation
 
 Swagger UI is available at:
@@ -146,7 +192,6 @@ task-manager-api/
 │   ├── tasks/           Tasks, filtering and pagination
 │   ├── redis/           Redis connection and caching
 │   └── prisma/          Prisma service
-├── test/                NestJS e2e template
 ├── Dockerfile           Production image of the API
 ├── docker-compose.yml   PostgreSQL, Redis and the API
 └── requests.http        Manual request collection for testing
@@ -164,19 +209,15 @@ Tests use mocks for the database and Redis, so external services are not require
 
 ## Known Limitations
 
-- Tests use mocks and do not verify SQL queries against a real database.
-- There are no end-to-end tests against a real PostgreSQL database yet.
-- Swagger is accessible in every environment.
-- Docker Compose uses development credentials and is not configured for production.
-- Reverse proxy settings are needed to identify the real client IP for rate limiting.
+- Tests use mocks, so they do not verify SQL queries against a real database. There are no end-to-end tests yet.
+- Swagger is open in every environment, and Docker Compose uses development credentials. It is not a production setup.
+- Behind a reverse proxy, extra proxy settings are needed for the login rate limit to see the real client IP.
 
 ## Future Improvements
 
-- Add end-to-end tests with a real PostgreSQL database.
+- End-to-end tests with a real PostgreSQL database.
+- Real invitation emails (the queue worker currently only simulates sending).
 - Secure or disable Swagger in production.
-- Improve production Docker configuration.
-- Add email notifications for project invitations.
-- Improve logging and monitoring.
 
 ## Author
 
